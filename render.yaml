@@ -1,0 +1,46 @@
+# Render.com Infrastructure-as-Code.
+# https://render.com → Blueprints → New Blueprint Instance → 이 repo 선택.
+# 첫 배포 후 Dashboard에서 시크릿 환경변수(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+# SUPABASE_JWT_SECRET, GEMINI_API_KEY, DART_API_KEY, CRON_SECRET, ADMIN_EMAIL 등)을 직접 등록.
+
+services:
+  - type: web
+    name: stock-tracker-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@10 --activate
+      pnpm install --frozen-lockfile
+      pnpm --filter @stock-tracker/shared build
+      pnpm --filter @stock-tracker/api build
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000
+      - key: WEB_ORIGIN
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: DART_API_KEY
+        sync: false
+      - key: SEC_EDGAR_USER_AGENT
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: OPS_SLACK_WEBHOOK
+        sync: false

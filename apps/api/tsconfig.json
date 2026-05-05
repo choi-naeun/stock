@@ -1,0 +1,13 @@
+{
+  "extends": "@stock-tracker/config/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules", "test"]
+}

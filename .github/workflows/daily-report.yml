@@ -1,0 +1,41 @@
+name: Daily Report Trigger
+
+on:
+  schedule:
+    - cron: "0 22 * * *"
+    - cron: "15 22 * * *"
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "kr | us"
+        default: "kr"
+        required: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine market
+        id: market
+        env:
+          INPUT_MARKET: ${{ inputs.market }}
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+        run: |
+          if [ -n "$INPUT_MARKET" ]; then
+            echo "value=$INPUT_MARKET" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE_CRON" = "15 22 * * *" ]; then
+            echo "value=us" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=kr" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger /api/cron/daily
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          MARKET: ${{ steps.market.outputs.value }}
+        run: |
+          curl --fail-with-body --max-time 600 \
+            -X POST "$API_URL/api/cron/daily?market=$MARKET" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json"
