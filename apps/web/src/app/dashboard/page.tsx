@@ -1,11 +1,13 @@
 import { NoReportYet } from '@/components/report/NoReportYet';
 import { ReportShell } from '@/components/report/ReportShell';
 import { apiJson } from '@/lib/api-client';
+import { publicEnv } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import type { DailyReportEnvelope, GlossaryEntry } from '@stock-tracker/shared';
 
 interface SearchParams {
   market?: string;
+  debug?: string;
 }
 
 type ReportResponse =
@@ -19,15 +21,28 @@ export default async function DashboardPage({
 }) {
   const params = await searchParams;
   const market: 'kr' | 'us' = params.market === 'us' ? 'us' : 'kr';
+  const debug = params.debug === '1';
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  let reportError: string | null = null;
+  let glossaryError: string | null = null;
 
   const [report, glossary] = await Promise.all([
-    apiJson<ReportResponse>(`/reports/today?market=${market}`).catch(() => null),
-    apiJson<GlossaryEntry[]>('/glossary').catch(() => [] as GlossaryEntry[]),
+    apiJson<ReportResponse>(`/reports/today?market=${market}`).catch((e: unknown) => {
+      reportError = e instanceof Error ? e.message : String(e);
+      return null;
+    }),
+    apiJson<GlossaryEntry[]>('/glossary').catch((e: unknown) => {
+      glossaryError = e instanceof Error ? e.message : String(e);
+      return [] as GlossaryEntry[];
+    }),
   ]);
 
   const isPublished =
@@ -46,6 +61,27 @@ export default async function DashboardPage({
           </button>
         </form>
       </div>
+
+      {debug && (
+        <pre className="mb-6 max-w-full overflow-x-auto rounded-md bg-neutral-100 p-4 text-xs dark:bg-neutral-900">
+{JSON.stringify(
+  {
+    publicEnv: {
+      NEXT_PUBLIC_API_URL: publicEnv.NEXT_PUBLIC_API_URL,
+      NEXT_PUBLIC_SUPABASE_URL: publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    },
+    sessionPresent: !!session,
+    accessTokenLength: session?.access_token?.length ?? 0,
+    reportError,
+    glossaryError,
+    reportStatus: report && 'status' in report ? report.status : null,
+    reportHasPayload: !!(report && 'payload' in report && report.payload),
+  },
+  null,
+  2,
+)}
+        </pre>
+      )}
 
       {isPublished && report && 'payload' in report && report.payload ? (
         <ReportShell payload={report.payload} glossary={glossary} />
